@@ -1,0 +1,298 @@
+"use client";
+
+import IndeterminateCheckbox from "@/src/ui/IndeterminateCheckbox";
+import {
+  ColumnDef,
+  getCoreRowModel,
+  getSortedRowModel,
+  RowSelectionState,
+  SortingState,
+  useReactTable,
+} from "@tanstack/react-table";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useMemo, useState } from "react";
+import { useBOEReports, useInvoiceReports } from "../useReports";
+import ViewDetails from "@/src/components/Dashboard/ViewInvoice";
+import { useDebounce } from "../useDebounce";
+
+const useInvoiceDetailsTable = (user_id: string, report_type: string) => {
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [filters, setFilters] = useState({});
+  const [search, setSearch] = useState<string>("");
+  const debounceValue = useDebounce(search);
+  const [startDate, setStartDate] = useState<string | undefined>();
+  const [endDate, setEndDate] = useState<string | undefined>();
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const params = new URLSearchParams(searchParams.toString());
+  const page = Number(params.get("page")) || 1;
+  const limit = Number(params.get("limit")) || 20;
+
+  const { isPending, data, isError } = useBOEReports(
+    user_id,
+    report_type,
+    page,
+    limit,
+    filters,
+    startDate,
+    endDate,
+    debounceValue,
+  );
+
+  const handlePage = (page: number) => {
+    params.set("page", page.toString());
+    router.push(pathname + `?${params.toString()}`);
+  };
+
+  const handleLimit = (limit: number) => {
+    const totalPages = Math.ceil((data?.total || 0) / limit);
+    params.set("limit", limit.toString());
+    if (Number(params.get("page")) > totalPages) {
+      params.set("page", "1");
+    } else {
+      params.set(
+        "page",
+        Number(params.get("page")) <= totalPages
+          ? (params.get("page") as string)
+          : "1",
+      );
+    }
+    router.push(pathname + `?${params.toString()}`);
+  };
+
+  const columns = useMemo<ColumnDef<any>[]>(() => {
+    return [
+      {
+        id: "select-col",
+        header: ({ table }) => (
+          <IndeterminateCheckbox
+            checked={table.getIsAllRowsSelected()}
+            indeterminate={table.getIsSomeRowsSelected()}
+            onChange={table.getToggleAllRowsSelectedHandler()} //or getToggleAllPageRowsSelectedHandler
+          />
+        ),
+        cell: ({ row }) => (
+          <IndeterminateCheckbox
+            checked={row.getIsSelected()}
+            disabled={!row.getCanSelect()}
+            onChange={row.getToggleSelectedHandler()}
+          />
+        ),
+      },
+
+      {
+        header: "INVOICE NO",
+        accessorKey: "INVOICE_NO",
+        cell: (info: any) => {
+          return <div>{info.getValue() || "-"}</div>;
+        },
+      },
+
+      {
+        header: "INV DATE",
+        accessorKey: "INV_DATE",
+        cell: (info: any) => <div className=""> {info.getValue() || "-"} </div>,
+      },
+      {
+        header: "EXCHANGE RATE",
+        accessorKey: "EXCHANGE_RATE",
+        cell: (info: any) => {
+          return <div>{info.getValue() || "-"}</div>;
+        },
+      },
+      {
+        header: "INV AMT (Cur)",
+        accessorKey: "INV_AMT",
+        cell: (info: any) => (
+          <div>
+            {info.getValue()
+              ? Number(info.getValue()).toLocaleString("en-IN")
+              : "-"}
+          </div>
+        ),
+      },
+      {
+        header: "INV AMT (INR) ",
+        accessorKey: "INV_AMT_INR",
+        cell: (info: any) => {
+          return (
+            <div>
+              {info.getValue()
+                ? Number(info.getValue()).toLocaleString("en-IN")
+                : "-"}
+            </div>
+          );
+        },
+      },
+
+      {
+        header: "SUPPLIER NAME ",
+        accessorKey: "SUPPLIER_NAME",
+        cell: (info: any) => {
+          return <p className="">{info.getValue() || "-"}</p>;
+        },
+      },
+      {
+        header: "MISC CHARGE",
+        accessorKey: "MISC_CHARGE",
+        cell: (info: any) => {
+          return (
+            <div>
+              {info.getValue()
+                ? Number(info.getValue()).toLocaleString("en-IN")
+                : "-"}
+            </div>
+          );
+        },
+      },
+      {
+        header: "ASS VALUE",
+        accessorKey: "ASS_VALUE",
+        cell: (info: any) => {
+          return (
+            <div>
+              {info.getValue()
+                ? Number(info.getValue()).toLocaleString("en-IN")
+                : "-"}
+            </div>
+          );
+        },
+      },
+      {
+        header: "NO OF ITEMS",
+        accessorKey: "NO_OF_ITEMS",
+        cell: (info: any) => {
+          const INVOICE_NO = info.row.original["INVOICE_NO"];
+          return (
+            <div
+              className="cursor-pointer px-3 py-1 text-xs bg-blue-100 border w-fit text-blue-600 rounded-md hover:bg-blue-100 active:scale-95 transition"
+              onClick={() => {
+                params.set("invoice_no", INVOICE_NO);
+                router.push(`${pathname}/invoice?${params.toString()}`);
+              }}
+            >
+              {info.getValue() || "-"}{" "}
+            </div>
+          );
+        },
+      },
+
+      {
+        header: "DUTY",
+        accessorKey: "DUTY",
+        cell: (info: any) => {
+          return (
+            <div>
+              {info.getValue()
+                ? Number(info.getValue()).toLocaleString("en-IN")
+                : "-"}
+            </div>
+          );
+        },
+      },
+      {
+        header: "IGST",
+        accessorKey: "IGST",
+        cell: (info: any) => {
+          return (
+            <div>
+              {info.getValue()
+                ? Number(info.getValue()).toLocaleString("en-IN")
+                : "-"}
+            </div>
+          );
+        },
+      },
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadingColumns = useMemo<ColumnDef<any>[]>(() => {
+    return columns.map((column) => {
+      return {
+        ...column,
+        cell(info: any) {
+          if (info.column.id === "action")
+            return (
+              <div
+                className="loading2 ml-auto size-6 rounded-full"
+                style={{ animationDelay: `${info.row.id * 0.2}s` }}
+              ></div>
+            );
+          if (info.column.id === "assignee")
+            return (
+              <div className="grid grid-cols-[auto_1fr] items-center gap-2">
+                <div
+                  className="loading2 aspect-square size-8 rounded-full"
+                  style={{ animationDelay: `${info.row.id * 0.2}s` }}
+                ></div>
+                <div
+                  className="loading h-5 w-full rounded-full"
+                  style={{ animationDelay: `${info.row.id * 0.2}s` }}
+                ></div>
+              </div>
+            );
+          return (
+            <div
+              className="loading my-0.75 mr-4 h-5 w-full rounded-full"
+              style={{ animationDelay: `${info.row.id * 0.2}s` }}
+            ></div>
+          );
+        },
+      };
+    });
+  }, [columns]);
+  return {
+    table: useReactTable({
+      columns: isPending ? loadingColumns : columns,
+      data: data?.data || [],
+      state: { rowSelection },
+      initialState: {
+        columnOrder: [
+          "select-col",
+          "INVOICE_NO",
+          "INV_DATE",
+          "EXCHANGE_RATE",
+          "INV_AMT",
+          "INV_AMT_INR",
+          "SUPPLIER_NAME",
+          "ASS_VALUE",
+          "MISC_CHARGE",
+          "DUTY",
+          "IGST",
+          "NO_OF_ITEMS",
+        ],
+      },
+      getRowId: (row) => row.id,
+      getCoreRowModel: getCoreRowModel(),
+      onRowSelectionChange: setRowSelection,
+    }),
+
+    handleLimit,
+    handlePage,
+    rowSelection,
+    ...{
+      total_pages: data?.total_pages || 0,
+      page: data?.page || 1,
+      limit: data?.page_size || 20,
+      total_data: data?.total || 0,
+      data_length: data?.data?.length || 0,
+    },
+    isError: isError,
+    // dataUpdatedAt,
+    // refetch,
+    // isRefetching,
+    setEndDate,
+    setStartDate,
+    setFilters,
+    setSearch,
+    search,
+    data: data?.data || [],
+    dashboardvalue: data?.dashboardvalue,
+    isLoading: isPending,
+  };
+};
+
+export default useInvoiceDetailsTable;

@@ -1,0 +1,42 @@
+.card {
+  position: relative;
+  background-color: #23152E;
+  padding: 4px; /* border thickness */
+  overflow: hidden;
+  z-index: 10;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background: conic-gradient(
+    transparent 0deg,
+    transparent 100deg,
+    #861EAD 360deg
+  );
+  animation: rotate 10s linear infinite;
+}
+
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+
+  background: #23152E;
+  border-radius: 14px;
+  z-index: 1;
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  /* padding: 20px; */
+  color: white;
+}
+
+@keyframes rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}

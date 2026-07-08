@@ -1,0 +1,20 @@
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+// This function can be marked `async` if using `await` inside
+export function proxy(request: NextRequest) {
+  //   return NextResponse.redirect(new URL('/home', request.url))
+  const access_token = request.cookies.get("access_token")?.value;
+  const refresh_token = request.cookies.get("refresh_token")?.value;
+  if (!access_token || !refresh_token) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+}
+
+// Alternatively, you can use a default export:
+// export default function proxy(request: NextRequest) { ... }
+
+// See "Matching Paths" below to learn more
+export const config = {
+  matcher: "/dashboard/:path*",
+};

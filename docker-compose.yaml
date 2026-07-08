@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  authentication:
+    build:
+      context: .
+      dockerfile: apps/authentication/Dockerfile
+      args:
+        NEXT_PUBLIC_AUTH_URL: ${AUTH_URL}
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_AUTH_URL: ${AUTH_URL}
+    restart: unless-stopped
+
+  customsiq-client:
+    build:
+      context: .
+      dockerfile: apps/customsiq-client/Dockerfile
+      args:
+        NEXT_PUBLIC_AUTH_URL: ${AUTH_URL}
+        NEXT_PUBLIC_CUSTOMS_URL: ${CUSTOMS_URL}
+        NEXT_PUBLIC_CLIENT_AUTH_URL: ${CLIENT_AUTH_URL}
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_AUTH_URL: ${AUTH_URL}
+      NEXT_PUBLIC_CUSTOMS_URL: ${CUSTOMS_URL}
+      NEXT_PUBLIC_CLIENT_AUTH_URL: ${CLIENT_AUTH_URL}
+    restart: unless-stopped

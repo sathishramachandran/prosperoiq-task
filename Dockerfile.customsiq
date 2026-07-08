@@ -1,0 +1,78 @@
+# =========================
+# Stage 1: Builder
+# =========================
+FROM node:20-alpine AS builder
+
+RUN apk add --no-cache libc6-compat git
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm@9
+
+# Copy only dependency manifests first
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY apps/customsiq-client/package.json ./apps/customsiq-client/
+COPY packages ./packages
+
+# GitHub token for cloning the private prosperoiq-table git dependency
+ARG GITHUB_TOKEN
+RUN if [ -z "$GITHUB_TOKEN" ]; then \
+      echo "ERROR: GITHUB_TOKEN build arg is empty. Set it as a BUILD variable in Coolify."; exit 1; \
+    else \
+      echo "GITHUB_TOKEN received (length=${#GITHUB_TOKEN})"; \
+    fi \
+ && git config --global url."https://oauth2:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Remove the token-rewrite rule so the token doesn't leak into later layers
+RUN git config --global --unset-all url."https://oauth2:${GITHUB_TOKEN}@github.com/".insteadOf || true
+
+# Copy source
+COPY apps/customsiq-client ./apps/customsiq-client
+
+# Build-time environment variables
+ARG AUTH_URL
+ARG CUSTOMS_URL
+ARG CLIENT_AUTH_URL
+
+ENV NEXT_PUBLIC_AUTH_URL=${AUTH_URL}
+ENV NEXT_PUBLIC_CUSTOMS_URL=${CUSTOMS_URL}
+ENV NEXT_PUBLIC_CLIENT_AUTH_URL=${CLIENT_AUTH_URL}
+ENV NODE_ENV=production
+ENV BUILD_STANDALONE=true
+
+# Build only this app
+RUN pnpm --filter customsiq-client build
+
+# =========================
+# Stage 2: Runner
+# =========================
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3001
+
+# Non-root user
+RUN addgroup -g 1001 -S nodejs \
+ && adduser -S nextjs -u 1001
+
+# Copy standalone build
+COPY --from=builder /app/apps/customsiq-client/.next/standalone ./
+# Copy static files (required for Next.js)
+COPY --from=builder /app/apps/customsiq-client/.next/static ./apps/customsiq-client/.next/static
+# Copy public folder
+COPY --from=builder /app/apps/customsiq-client/public ./apps/customsiq-client/public
+
+# Set permissions
+RUN chown -R nextjs:nodejs /app
+
+USER nextjs
+
+EXPOSE 3001
+ENV HOSTNAME=0.0.0.0
+
+# Start server (monorepo path)
+CMD ["node", "apps/customsiq-client/server.js"]
